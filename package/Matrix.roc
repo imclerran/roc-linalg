@@ -84,6 +84,7 @@ Matrix a := {
 # Construction & Conversion
 #==============================================================================
 
+## Create a new matrix from a list of lists (rows) of numbers.
 new : List (List (Num a)) -> Result (Matrix a) [RowLengthMismatch, MatrixCannotBeEmpty]
 new = |ll|
     vectors = List.map(ll, Vector.new)
@@ -102,6 +103,7 @@ new = |ll|
         )
         |> Ok
 
+## Create a matrix from a list of row vectors.
 from_rows : List (Vector a) -> Result (Matrix a) [RowLengthMismatch, MatrixCannotBeEmpty]
 from_rows = |vectors|
     min_len = List.map(vectors, Vector.count) |> List.min |> Result.with_default(0)
@@ -120,6 +122,7 @@ from_rows = |vectors|
         )
         |> Ok
 
+## Create a matrix from a list of column vectors.
 from_columns : List (Vector a) -> Result (Matrix a) [ColumnLengthMismatch, MatrixCannotBeEmpty]
 from_columns = |cols|
     min_len = List.map(cols, Vector.count) |> List.min |> Result.with_default(0)
@@ -159,6 +162,7 @@ expect
     mx2 = from_columns(cs)
     Ok(mx1) == mx2
 
+## Create an identity matrix of the given size (n x n).
 identity : U64 -> Matrix a
 identity = |n|
     vectors =
@@ -179,6 +183,7 @@ identity = |n|
 
 expect new([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) == Ok(identity(3))
 
+## Create a matrix of the given dimensions filled with zeros.
 zeros : U64, U64 -> Matrix a
 zeros = |n_rows, n_cols|
     vectors = List.repeat(Vector.zeros(n_cols), n_rows)
@@ -190,6 +195,7 @@ zeros = |n_rows, n_cols|
         },
     )
 
+## Create a matrix of the given dimensions filled with ones.
 ones : U64, U64 -> Matrix a
 ones = |n_rows, n_cols|
     vectors = List.repeat(Vector.ones(n_cols), n_rows)
@@ -201,6 +207,7 @@ ones = |n_rows, n_cols|
         },
     )
 
+## Concatenate two matrices horizontally.
 concat : Matrix a, Matrix a -> Result (Matrix a) [DimensionMismatch]
 concat = |@Matrix(mx1), @Matrix(mx2)|
     if mx1.n_rows != mx2.n_rows then
@@ -216,6 +223,7 @@ concat = |@Matrix(mx1), @Matrix(mx2)|
         )
         |> Ok
 
+## Convert a matrix of numbers to a matrix of floating-point numbers.
 to_frac : Matrix * -> Matrix (FloatingPoint *)
 to_frac = |@Matrix(mx)|
     vectors = List.map(mx.vectors, Vector.to_frac)
@@ -231,11 +239,15 @@ to_frac = |@Matrix(mx)|
 # Accessors & Slicing
 #==============================================================================
 
+## Get the dimensions of the matrix as a record with row and column counts.
+dimensions : Matrix a -> { rows : U64, cols : U64 }
 dimensions = |@Matrix(mx)| { rows: mx.n_rows, cols: mx.n_cols }
 
+## Get the rows of the matrix as a list of vectors.
 get_rows : Matrix a -> List (Vector a)
 get_rows = |@Matrix(mx)| mx.vectors
 
+## Get the columns of the matrix as a list of vectors.
 get_columns : Matrix a -> List (Vector a)
 get_columns = |@Matrix(mx)|
     res =
@@ -248,12 +260,15 @@ get_columns = |@Matrix(mx)|
         Ok(cs) -> cs
         _ -> crash "index is always in range"
 
+## Get the row at the specified index.
 get_row : Matrix a, U64 -> Result (Vector a) [OutOfBounds]
 get_row = |@Matrix(mx), index| List.get(mx.vectors, index)
 
+## Get the column at the specified index.
 get_column : Matrix a, U64 -> Result (Vector a) [OutOfBounds]
 get_column = |@Matrix(mx), index| List.map_try(mx.vectors, |r| Vector.element(r, index)) |> Result.map_ok(Vector.new)
 
+## Get the element at the specified row and column indices.
 element : Matrix a, U64, U64 -> Result (Num a) [OutOfBounds]
 element = |@Matrix(mx), r, c| List.get(mx.vectors, r)? |> Vector.element(c)
 
@@ -262,8 +277,15 @@ Range : {
     end : [At U64, Before U64, Length U64],
 }
 
+## Get a slice of the matrix.
+## ```
+## Range : {
+##     start : [At U64, After U64],
+##     end : [At U64, Before U64, Length U64],
+## }
+## ```
 slice : Matrix a, Range, Range -> Result (Matrix a) [InvalidRowRange, InvalidColumnRange, MatrixCannotBeEmpty]
-slice = |@Matrix(mx), rs, cs|
+slice = |@Matrix(mx), rows, cols|
     to_start_and_len = |range|
         start =
             when range.start is
@@ -282,8 +304,8 @@ slice = |@Matrix(mx), rs, cs|
             Length(n) ->
                 Ok({ start, len: n })
 
-    range_r = to_start_and_len(rs) ? |LengthLessThanOne| InvalidRowRange
-    range_c = to_start_and_len(cs) ? |LengthLessThanOne| InvalidColumnRange
+    range_r = to_start_and_len(rows) ? |LengthLessThanOne| InvalidRowRange
+    range_c = to_start_and_len(cols) ? |LengthLessThanOne| InvalidColumnRange
 
     vectors =
         List.sublist(mx.vectors, range_r)
@@ -303,6 +325,7 @@ slice = |@Matrix(mx), rs, cs|
     )
     |> Ok
 
+## Get the minor matrix by removing the specified row and column.
 minor : Matrix a, U64, U64 -> Result (Matrix a) [MatrixCannotBeEmpty]
 minor = |mx, r, c| mx |> drop_row(r)? |> drop_col(c)
 
@@ -311,6 +334,7 @@ expect
     mx2 = minor(mx1, 1, 1)
     mx2 == new([[1, 3], [7, 9]])
 
+## Get the diagonal matrix formed from the diagonal elements of the input matrix.
 diagonal : Matrix a -> Result (Matrix a) [MatrixMustBeSquare]
 diagonal = |@Matrix(mx)|
     if !is_square(@Matrix(mx)) then
@@ -349,6 +373,7 @@ expect
     mx3 = new([[1, 0], [0, 1]])
     mx2 == mx3
 
+## Get the diagonal elements of the matrix as a vector.
 diagonal_vector : Matrix a -> Result (Vector a) [MatrixMustBeSquare]
 diagonal_vector = |@Matrix(mx)|
     if !is_square(@Matrix(mx)) then
@@ -368,6 +393,7 @@ diagonal_vector = |@Matrix(mx)|
 # Row & Column Manipulation
 #==============================================================================
 
+## Swap two rows in the matrix.
 swap_rows : Matrix a, U64, U64 -> Matrix a
 swap_rows = |@Matrix(mx), r1, r2|
     vectors = List.swap(mx.vectors, r1, r2)
@@ -379,6 +405,7 @@ swap_rows = |@Matrix(mx), r1, r2|
         },
     )
 
+## Scale a row by a scalar.
 scale_row : Matrix a, U64, Num a -> Matrix a
 scale_row = |@Matrix(mx), r, scalar|
     vectors =
@@ -398,6 +425,7 @@ scale_row = |@Matrix(mx), r, scalar|
         },
     )
 
+## Replace a row with a new vector.
 replace_row : Matrix a, U64, Vector a -> Matrix a
 replace_row = |@Matrix(mx), r, new_vec|
     vectors =
@@ -417,6 +445,7 @@ replace_row = |@Matrix(mx), r, new_vec|
         },
     )
 
+## Drop a row from the matrix.
 drop_row : Matrix a, U64 -> Result (Matrix a) [MatrixCannotBeEmpty]
 drop_row = |@Matrix(mx), r|
     vectors = List.drop_at(mx.vectors, r)
@@ -438,6 +467,7 @@ expect
     mx2 = drop_row(mx1, 1)
     mx2 == new([[1, 1], [3, 3]])
 
+## Drop a column from the matrix.
 drop_col : Matrix a, U64 -> Result (Matrix a) [MatrixCannotBeEmpty]
 drop_col = |@Matrix(mx), c|
     vectors =
@@ -482,6 +512,7 @@ expect
 # Scalar & Elementwise Operations
 #==============================================================================
 
+## Multiply the matrix by a scalar.
 scale : Matrix a, Num a -> Matrix a
 scale = |@Matrix(mx), n|
     vectors = List.map(mx.vectors, |v| Vector.scale(v, n))
@@ -493,6 +524,7 @@ scale = |@Matrix(mx), n|
         },
     )
 
+## Add a scalar to each element of the matrix.
 add_scalar : Matrix a, Num a -> Matrix a
 add_scalar = |@Matrix(mx), n|
     vectors = List.map(mx.vectors, |v| Vector.add_scalar(v, n))
@@ -504,6 +536,7 @@ add_scalar = |@Matrix(mx), n|
         },
     )
 
+## Subtract a scalar from each element of the matrix.
 subtract_scalar : Matrix a, Num a -> Matrix a
 subtract_scalar = |@Matrix(mx), n|
     vectors = List.map(mx.vectors, |v| Vector.subtract_scalar(v, n))
@@ -515,12 +548,15 @@ subtract_scalar = |@Matrix(mx), n|
         },
     )
 
+## Multiply two matrices elementwise.
 multiply_elementwise : Matrix a, Matrix a -> Result (Matrix a) [DimensionMismatch]
 multiply_elementwise = |mx1, mx2| map2_elementwise(mx1, mx2, Num.mul)
 
+## Divide two matrices elementwise.
 divide_elementwise : Matrix (FloatingPoint a), Matrix (FloatingPoint a) -> Result (Matrix (FloatingPoint a)) [DimensionMismatch]
 divide_elementwise = |mx1, mx2| map2_elementwise(mx1, mx2, Num.div)
 
+## Element-wise map of a matrix with a unary function.
 map_elementwise : Matrix a, (Num a -> Num a) -> Matrix a
 map_elementwise = |@Matrix(mx), transform|
     vectors =
@@ -537,6 +573,7 @@ map_elementwise = |@Matrix(mx), transform|
         },
     )
 
+## Element-wise map of two matrices with a binary function.
 map2_elementwise : Matrix a, Matrix b, (Num a, Num b -> Num c) -> Result (Matrix c) [DimensionMismatch]
 map2_elementwise = |@Matrix(mx1), @Matrix(mx2), combine|
     if dimensions(@Matrix(mx1)) != dimensions(@Matrix(mx2)) then
@@ -567,6 +604,7 @@ map2_elementwise = |@Matrix(mx1), @Matrix(mx2), combine|
 # Matrix Arithmetic
 #==============================================================================
 
+## Add two matrices.
 add : Matrix a, Matrix a -> Result (Matrix a) [DimensionMismatch]
 add = |@Matrix(mx1), @Matrix(mx2)|
     if mx1.n_rows != mx2.n_rows or mx1.n_cols != mx2.n_cols then
@@ -591,6 +629,7 @@ expect
     mx3 = new([[6, 8], [10, 12]])
     mx3 == add(mx1, mx2)
 
+## Subtract two matrices.
 subtract : Matrix a, Matrix a -> Result (Matrix a) [DimensionMismatch]
 subtract = |@Matrix(mx1), @Matrix(mx2)|
     if mx1.n_rows != mx2.n_rows or mx1.n_cols != mx2.n_cols then
@@ -615,6 +654,7 @@ expect
     mx3 = new([[4, 4], [4, 4]])
     mx3 == subtract(mx1, mx2)
 
+## Multiply two matrices.
 multiply : Matrix a, Matrix a -> Result (Matrix a) [DimensionMismatch]
 multiply = |@Matrix(mx1), @Matrix(mx2)|
     if mx1.n_cols != mx2.n_rows then
@@ -639,6 +679,7 @@ expect
     mx3 = new([[8, 1], [7, -4]])
     mx3 == multiply(mx1, mx2)
 
+## Raise a matrix to an integer power.
 power : Matrix a, U64 -> Result (Matrix a) [ZeroPowerOnNonSquareMatrix, DimensionMismatch]
 power = |@Matrix(mx), p|
     when p is
@@ -671,6 +712,7 @@ expect
     mx2 = power(mx1, 2)
     mx2 == multiply(mx1, mx1) |> Result.try(|mx| multiply(mx, mx0))
 
+## Transpose the matrix.
 transpose : Matrix a -> Matrix a
 transpose = |@Matrix(mx)|
     @Matrix(
@@ -686,6 +728,7 @@ expect
     mx2 = new([[1, 4], [2, 5], [3, 6]]) |> unwrap("failed to construct matrix mx2")
     mx2 == transpose(mx1)
 
+## Multiplyly a matrix by a vector.
 multiply_vector : Matrix a, Vector a -> Result (Vector a) [DimensionMismatch]
 multiply_vector = |@Matrix(mx), vec|
     List.map_try(mx.vectors, |v| Vector.multiply(vec, v))
@@ -696,6 +739,7 @@ multiply_vector = |@Matrix(mx), vec|
 # Decompositions, Solvers & Rank
 #==============================================================================
 
+## Compute the row echelon form of a matrix, returning a matrix of floating-point numbers.  
 row_echelon_form : Matrix a -> Matrix (FloatingPoint b)
 row_echelon_form = |@Matrix(mx)|
     get_pivot_idx = |v| Vector.to_list(v) |> List.find_first_index(|x| !Num.is_approx_eq(x, 0, { atol: 0.000_000_1 }))
@@ -759,6 +803,7 @@ expect
     mx3 = row_echelon_form(mx1)
     mx2 |> approx_eq(mx3)
 
+## Compute the row echelon form of an integer matrix, returning a matrix of integers.
 row_echelon_form_int : Matrix (Integer a) -> Matrix (Integer a)
 row_echelon_form_int = |@Matrix(mx)|
     least_common_multiple = |n1, n2| n1 * n2 // greatest_common_divisor(n1, n2)
@@ -841,6 +886,7 @@ expect
     mx3 = row_echelon_form_int(mx1)
     mx2 == mx3
 
+## Compute the reduced row echelon form of a matrix, returning a matrix of floating-point numbers.
 reduced_row_echelon_form : Matrix a -> Matrix (FloatingPoint b)
 reduced_row_echelon_form = |@Matrix(mx)|
     get_pivot_idx = |v| Vector.to_list(v) |> List.find_first_index(|x| !Num.is_approx_eq(x, 0, { atol: 0.000_000_1 }))
@@ -905,17 +951,20 @@ expect
     mx3 = reduced_row_echelon_form(mx1)
     mx2 |> approx_eq(mx3)
 
+## Solve the linear system Ax = b for x, where A is the matrix and b is the vector.
 solve : Matrix a, Vector a -> Result (Vector (FloatingPoint b)) [MatrixMustBeSquare, DimensionMismatch, DeterminantIsZero]
 solve = |mx, b|
     inv = invert(mx)?
     multiply_vector(inv, Vector.to_frac(b))
     |> Result.map_ok(|vec| Vector.to_frac(vec))
 
+## Solve the linear system AX = B for X, where A, B and X are matrices.
 solve_many : Matrix a, Matrix a -> Result (Matrix (FloatingPoint b)) [MatrixMustBeSquare, DimensionMismatch, DeterminantIsZero]
 solve_many = |mx, b|
     inv = invert(mx)?
     multiply(inv, to_frac(b))
 
+## Invert a square matrix.
 invert : Matrix * -> Result (Matrix (FloatingPoint *)) [MatrixMustBeSquare, DeterminantIsZero]
 invert = |mx|
     det = determinant(mx)?
@@ -996,6 +1045,7 @@ invert = |mx|
         )
         |> Ok
 
+## Compute the rank of the matrix.
 rank : Matrix a -> U64
 rank = |mx|
     has_pivot = |v|
@@ -1015,6 +1065,7 @@ rank = |mx|
 # Determinants & Trace
 #==============================================================================
 
+## Compute the determinant of a square matrix.
 determinant : Matrix * -> Result (Frac *) [MatrixMustBeSquare]
 determinant = |@Matrix(mx)|
     if mx.n_cols != mx.n_rows then
@@ -1039,6 +1090,7 @@ determinant = |@Matrix(mx)|
         )
         |> Ok
 
+## Compute the determinant of a square integer matrix.
 determinant_int : Matrix (Integer a) -> Result I128 [MatrixMustBeSquare]
 determinant_int = |@Matrix(mx)|
     if mx.n_cols != mx.n_rows then
@@ -1068,6 +1120,7 @@ expect
     d = determinant_int(mx1)
     Ok(-12) == d
 
+## Compute the trace of a square matrix.
 trace : Matrix a -> Result (Num a) [MatrixMustBeSquare]
 trace = |mx| diagonal_vector(mx) |> Result.map_ok(|vec| Vector.sum(vec))
 
@@ -1075,9 +1128,11 @@ trace = |mx| diagonal_vector(mx) |> Result.map_ok(|vec| Vector.sum(vec))
 # Structural Tests
 #==============================================================================
 
+## Check if the matrix is square.
 is_square : Matrix a -> Bool
 is_square = |@Matrix(mx)| mx.n_rows == mx.n_cols
 
+## Check if the matrix is symmetric.
 is_symmetric : Matrix a -> Bool
 is_symmetric = |mx| is_square(mx) and mx == transpose(mx)
 
@@ -1086,6 +1141,7 @@ expect
     mx2 = new([[1, 2, 3], [3, 4, 5], [3, 5, 6]]) |> unwrap("failed to construct matrix mx2")
     is_symmetric(mx1) and !is_symmetric(mx2)
 
+## Check if the matrix is diagonal.
 is_diagonal : Matrix a -> Bool
 is_diagonal = |@Matrix(mx)|
     if !is_square(@Matrix(mx)) then
@@ -1116,6 +1172,7 @@ expect
     mx2 = new([[1, 0, 1], [0, 1, 1], [0, 0, 1]]) |> unwrap("failed to construct matrix mx2")
     is_diagonal(mx1) and !is_diagonal(mx2)
 
+## Check if the matrix is orthogonal.
 is_orthogonal : Matrix a -> Bool
 is_orthogonal = |mx|
     if !is_square(mx) then
@@ -1131,6 +1188,7 @@ expect
     mx2 = new([[0, 2], [-2, 0]]) |> unwrap("failed to construct matrix mx2")
     is_orthogonal(mx1) and !is_orthogonal(mx2)
 
+## Check if two matrices are approximately equal (for floating-point matrices).
 approx_eq : Matrix (FloatingPoint a), Matrix (FloatingPoint a) -> Bool
 approx_eq = |@Matrix(mx1), @Matrix(mx2)|
     List.map2(
@@ -1151,17 +1209,21 @@ expect
 # Aggregations & Norms
 #==============================================================================
 
+## Compute the sum of all elements in the matrix.
 sum : Matrix a -> Num a
 sum = |@Matrix(mx)|
     List.map(mx.vectors, Vector.sum)
     |> List.sum
 
+## Compute the sum of each row as a vector.
 row_sums : Matrix a -> Vector a
 row_sums = |@Matrix(mx)| List.map(mx.vectors, Vector.sum) |> Vector.new
 
+## Compute the sum of each column as a vector.
 column_sums : Matrix a -> Vector a
 column_sums = |mx| get_columns(mx) |> List.map(Vector.sum) |> Vector.new
 
+## Compute the mean of all elements in the matrix.
 mean : Matrix a -> Frac b
 mean = |mx|
     total_sum = sum(mx) |> Num.to_frac
@@ -1169,11 +1231,14 @@ mean = |mx|
     total_elements = Num.to_frac(dim.rows * dim.cols)
     Num.div(total_sum, total_elements)
 
+## Compute the mean of each row as a vector.
 row_means : Matrix a -> Vector (FloatingPoint b)
 row_means = |@Matrix(mx)| List.map(mx.vectors, Vector.mean) |> Vector.new
 
+## Compute the mean of each column as a vector.
 column_means : Matrix a -> Vector (FloatingPoint b)
 column_means = |mx| get_columns(mx) |> List.map(Vector.mean) |> Vector.new
 
+## Compute the Frobenius norm of the matrix.
 frobenius_norm : Matrix a -> Frac b
 frobenius_norm = |mx| sum(map_elementwise(mx, |x| x * x)) |> Num.to_frac |> Num.sqrt
