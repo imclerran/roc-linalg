@@ -1,4 +1,3 @@
-## A module for mathematical vectors with various operations.
 module [
     Vector,
     # Constructors & Conversion
