@@ -405,7 +405,7 @@ swap_rows = |@Matrix(mx), r1, r2|
         },
     )
 
-## Scale a row by a scalar.
+## Multiply a row by a scalar.
 scale_row : Matrix a, U64, Num a -> Matrix a
 scale_row = |@Matrix(mx), r, scalar|
     vectors =
@@ -654,7 +654,7 @@ expect
     mx3 = new([[4, 4], [4, 4]])
     mx3 == subtract(mx1, mx2)
 
-## Multiply two matrices.
+## Perform matrix multiplication on two matrices.
 multiply : Matrix a, Matrix a -> Result (Matrix a) [DimensionMismatch]
 multiply = |@Matrix(mx1), @Matrix(mx2)|
     if mx1.n_cols != mx2.n_rows then
@@ -728,7 +728,7 @@ expect
     mx2 = new([[1, 4], [2, 5], [3, 6]]) |> unwrap("failed to construct matrix mx2")
     mx2 == transpose(mx1)
 
-## Multiplyly a matrix by a vector.
+## Multiply a matrix by a vector.
 multiply_vector : Matrix a, Vector a -> Result (Vector a) [DimensionMismatch]
 multiply_vector = |@Matrix(mx), vec|
     List.map_try(mx.vectors, |v| Vector.multiply(vec, v))
